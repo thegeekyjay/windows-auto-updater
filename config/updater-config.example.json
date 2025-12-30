@@ -1,0 +1,8 @@
+{
+  "UpdateWinget": true,
+  "UpdateStoreApps": true,
+  "InstallWindowsUpdates": false,
+  "RebootIfRequired": false,
+  "ExcludedPackages": [],
+  "LogDirectory": "C:\\ProgramData\\WindowsAutoUpdater\\Logs"
+}
