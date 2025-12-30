@@ -16,7 +16,7 @@ A modern automation tool with a retro soul — keeping your system updated witho
 <p align="center">
 
   <!-- Retro Version Badge -->
-  <img src="assets/badge-v1.0.0.png" width="110" alt="Retro Version Badge" />
+  <img src="assets/badge-v1.png" width="110" alt="Retro Version Badge" />
 
   <!-- Modern Shields.io Badges -->
   <img src="https://img.shields.io/github/v/release/thegeekyjay/windows-auto-updater?color=blue&style=flat-square" alt="Latest Release" />
