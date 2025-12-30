@@ -13,6 +13,11 @@ A modern automation tool with a retro soul — keeping your system updated witho
 </p>
 
 ---
+<p align="center">
+  <a href="https://github.com/thegeekyjay/windows-auto-updater/actions">
+    <img src="https://github.com/thegeekyjay/windows-auto-updater/actions/workflows/powershell-ci.yml/badge.svg" alt="CI Status" />
+  </a>
+</p>
 
 ## 🚀 Features
 
