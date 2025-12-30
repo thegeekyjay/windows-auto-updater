@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/banner-dark.png" width="50%" />
+  <img src="assets/banner-dark.png" width="65%" />
 </p>
 
 <h1 align="center">Windows Auto Updater</h1>
