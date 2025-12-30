@@ -5,10 +5,6 @@
 <h1 align="left">Windows Auto Updater</h1>
 
 <p align="left">
-  <img src="assets/badge-v1.png" width="110" />
-</p>
-
-<p align="left">
 A modern automation tool with a retro soul — keeping your system updated without lifting a finger.
 </p>
 
