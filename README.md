@@ -5,7 +5,7 @@
 <h1 align="center">Windows Auto Updater</h1>
 
 <p align="center">
-  <img src="assets/badge-v1png" width="110" />
+  <img src="assets/badge-v1.png" width="110" />
 </p>
 
 <p align="center">
