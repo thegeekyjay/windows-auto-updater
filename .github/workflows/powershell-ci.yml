@@ -1,0 +1,17 @@
+name: PowerShell Lint
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install PSScriptAnalyzer
+        run: Install-Module PSScriptAnalyzer -Force -Scope CurrentUser
+
+      - name: Run PSScriptAnalyzer
+        run: Invoke-ScriptAnalyzer -Path . -Recurse -Severity Warning
