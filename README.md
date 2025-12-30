@@ -2,18 +2,18 @@
   <img src="assets/banner-dark.png" width="65%" />
 </p>
 
-<h1 align="center">Windows Auto Updater</h1>
+<h1 align="left">Windows Auto Updater</h1>
 
-<p align="center">
+<p align="left">
   <img src="assets/badge-v1.png" width="110" />
 </p>
 
-<p align="center">
+<p align="left">
 A modern automation tool with a retro soul — keeping your system updated without lifting a finger.
 </p>
 
 ---
-<p align="center">
+<p align="left">
 
   <!-- Retro Version Badge -->
   <!-- img src="assets/badge-v1.png" width="110" alt="Retro Version Badge" />
