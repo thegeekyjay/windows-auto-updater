@@ -4,7 +4,6 @@
 
 <h1 align="left">Windows Auto Updater</h1>
 
-<p align="left">
 A modern automation tool with a retro soul — keeping your system updated without lifting a finger.
 </p>
 
