@@ -14,9 +14,17 @@ A modern automation tool with a retro soul — keeping your system updated witho
 
 ---
 <p align="center">
-  <a href="https://github.com/thegeekyjay/windows-auto-updater/actions">
-    <img src="https://github.com/thegeekyjay/windows-auto-updater/actions/workflows/powershell-ci.yml/badge.svg" alt="CI Status" />
-  </a>
+
+  <!-- Retro Version Badge -->
+  <img src="assets/badge-v1.0.0.png" width="110" alt="Retro Version Badge" />
+
+  <!-- Modern Shields.io Badges -->
+  <img src="https://img.shields.io/github/v/release/thegeekyjay/windows-auto-updater?color=blue&style=flat-square" alt="Latest Release" />
+  <img src="https://img.shields.io/github/actions/workflow/status/thegeekyjay/windows-auto-updater/powershell-ci.yml?style=flat-square&label=CI" alt="CI Status" />
+  <img src="https://img.shields.io/github/license/thegeekyjay/windows-auto-updater?style=flat-square" alt="License" />
+  <img src="https://img.shields.io/github/last-commit/thegeekyjay/windows-auto-updater?style=flat-square" alt="Last Commit" />
+  <img src="https://img.shields.io/badge/PowerShell-5.1%2B-blue?style=flat-square" alt="PowerShell Version" />
+
 </p>
 
 ## 🚀 Features
