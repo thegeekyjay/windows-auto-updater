@@ -1,17 +1,35 @@
-name: PowerShell Lint
+name: PowerShell CI
 
 on:
   push:
+    branches: [ main ]
   pull_request:
+    branches: [ main ]
 
 jobs:
-  lint:
+  build:
     runs-on: windows-latest
+
     steps:
-      - uses: actions/checkout@v3
+    - name: Checkout
+      uses: actions/checkout@v4
 
-      - name: Install PSScriptAnalyzer
-        run: Install-Module PSScriptAnalyzer -Force -Scope CurrentUser
+    - name: Setup PowerShell
+      uses: actions/setup-python@v4
+      # Use PowerShell preinstalled on windows-latest; ensure pwsh is available
 
-      - name: Run PSScriptAnalyzer
-        run: Invoke-ScriptAnalyzer -Path . -Recurse -Severity Warning
+    - name: Install Modules
+      run: |
+        pwsh -Command "Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser"
+        pwsh -Command "Install-Module -Name Pester -Force -Scope CurrentUser"
+      shell: pwsh
+
+    - name: Run PSScriptAnalyzer
+      run: |
+        pwsh -NoProfile -NonInteractive -Command "Import-Module PSScriptAnalyzer; Invoke-ScriptAnalyzer -Path . -Settings PSScriptAnalyzerSettings.psd1 -Recurse"
+      shell: pwsh
+
+    - name: Run Pester Tests
+      run: |
+        pwsh -NoProfile -NonInteractive -Command "Import-Module Pester; Invoke-Pester -Script .\\tests -EnableExit"
+      shell: pwsh
