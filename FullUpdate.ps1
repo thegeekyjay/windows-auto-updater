@@ -70,7 +70,7 @@ $Summary += "Store updates completed."
 Write-Host "Running Windows Updates..."
 $Summary += "Windows Update scan started."
 Import-Module PSWindowsUpdate
-Get-WindowsUpdate -Verbose
+Get-WindowsUpdate -AcceptAll -Download
 Install-WindowsUpdate -AcceptAll -AutoReboot
 $Summary += "Windows Update installation completed."
 
