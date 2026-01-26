@@ -1,3 +1,8 @@
+# --- Parameters ---
+param (
+    [switch]$Force
+)
+
 # --- Settings ---
 $ErrorActionPreference = "Stop"
 
@@ -10,10 +15,15 @@ $Today = (Get-Date).ToString("dd-MMM-yy")
 
 if (Test-Path $StateFile) {
     $LastRun = Get-Content $StateFile -ErrorAction SilentlyContinue
-    if ($LastRun -eq $Today) {
+    
+    # Check if we should skip: Only skip if it ran today AND -Force was NOT used
+    if ($LastRun -eq $Today -and -not $Force) {
         Import-Module BurntToast
-        New-BurntToastNotification -Text "Update Script", "Skipped — already ran today ($Today)."
+        New-BurntToastNotification -Text "Update Script", "Skipped — already ran today ($Today)"
         exit
+    }
+    elseif ($Force) {
+        Write-Host "Force flag detected. Bypassing daily skip check." -ForegroundColor Cyan
     }
 }
 
@@ -51,6 +61,7 @@ $Summary += "Winget updates completed."
 # --- Microsoft Store Updates ---
 Write-Host "Running Microsoft Store updates..."
 $Summary += "Store updates started."
+# Note: Ensure 'store' is a valid alias/executable on your system (e.g., from WinGet or a specific module)
 store updates --apply
 $Summary += "Store updates completed."
 
@@ -75,4 +86,4 @@ Stop-Transcript
 
 # --- Completion Notification ---
 Import-Module BurntToast
-New-BurntToastNotification -Text "Update Script", "Updates completed successfully on $Today."
+New-BurntToastNotification -Text "Update Script", "Updates completed successfully on $Today"
