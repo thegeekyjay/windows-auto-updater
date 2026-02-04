@@ -187,25 +187,69 @@ After updates complete, a summary is displayed showing:
 
 To automate runs, create a scheduled task that runs as SYSTEM or an administrative user.
 
-Example: register a scheduled task that runs daily at 3:00 AM (run with highest privileges):
+### Basic Setup
+
+Example: register a scheduled task that runs daily at 3:00 AM with highest privileges:
 
 ```powershell
-$action = New-ScheduledTaskAction -Execute "PowerShell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -File `\"C:\path\to\FullUpdate.ps1`\""
+$taskName = "Windows Auto Updater"
+$scriptPath = "C:\path\to\FullUpdate.ps1"
+
+$action = New-ScheduledTaskAction `
+  -Execute "PowerShell.exe" `
+  -Argument "-NoProfile -ExecutionPolicy Bypass -File '$scriptPath'"
+
 $trigger = New-ScheduledTaskTrigger -Daily -At 3am
-$principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -RunLevel Highest
-Register-ScheduledTask -TaskName "Windows Auto Updater" -Action $action -Trigger $trigger -Principal $principal
+
+$principal = New-ScheduledTaskPrincipal `
+  -UserId "SYSTEM" `
+  -RunLevel Highest
+
+Register-ScheduledTask `
+  -TaskName $taskName `
+  -Action $action `
+  -Trigger $trigger `
+  -Principal $principal
 ```
 
-**Important Notes:**
-- Task must run as SYSTEM or an account with Administrator privileges
-- Script will fail gracefully if not running elevated
-- Daily skip check prevents redundant runs if scheduled multiple times per day
-- Use `-Force` parameter in scheduled task if you want to bypass daily check:
-  ```powershell
-  -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `\"C:\path\to\FullUpdate.ps1`\" -Force"
-  ```
+### With Force Parameter
 
-Alternatively, create the task via Task Scheduler GUI. Ensure proper permissions are configured.
+To bypass the daily skip check (useful for testing):
+
+```powershell
+$action = New-ScheduledTaskAction `
+  -Execute "PowerShell.exe" `
+  -Argument "-NoProfile -ExecutionPolicy Bypass -File '$scriptPath' -Force"
+```
+
+### Important Notes
+
+- **Admin Requirement**: Task must run as SYSTEM or an account with Administrator privileges
+  - The script validates admin rights at startup and exits with exit code 1 if not elevated
+  - SYSTEM account is recommended for unattended execution
+  
+- **Daily Skip Check**: Script automatically prevents duplicate runs if scheduled multiple times per day
+  - Use `-Force` parameter to override this check
+  
+- **Log Files**: Output is logged to:
+  - `C:\Scripts\Logs\UpdateLog-[DATE].txt` (daily transcript)
+  - `C:\Scripts\State\LastRun.txt` (last execution date)
+  - Logs older than 30 days are automatically deleted
+
+- **Error Handling**: Script fails gracefully with proper error messages in logs
+  - Check `C:\Scripts\Logs\` for troubleshooting details
+  - Non-zero exit codes indicate failures
+
+### Via Task Scheduler GUI
+
+Alternatively, create the task using the GUI:
+1. Open Task Scheduler
+2. Create Basic Task
+3. Set trigger (Daily, 3:00 AM)
+4. Set action to run: `PowerShell.exe`
+5. Arguments: `-NoProfile -ExecutionPolicy Bypass -File "C:\path\to\FullUpdate.ps1"`
+6. Set principal to run with highest privileges
+7. Configure account: SYSTEM or administrator account
 
 ---
 
