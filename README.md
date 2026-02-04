@@ -55,19 +55,23 @@ It is built with modern PowerShell but ships with a playful retro-inspired brand
 
 ## Features
 
+- **Version 1.1** — Stable release with comprehensive automation
 - **Fully automated winget package updates** with exit code validation
-- **Automated Microsoft Store app updates** with availability checking
+- **Automated Microsoft Store app updates** with availability checking (skips gracefully if unavailable)
 - **Automated Windows Update installation** with reboot detection
 - **System restore point verification** after updates
 - **Daily run prevention** — automatically skips if already run today (bypass with `-Force`)
 - **Comprehensive error handling** — try-catch-finally with proper cleanup
 - **Module availability validation** — verifies PSWindowsUpdate and BurntToast before use
+- **Log-Message helper function** — consistent color-coded output (Info/Warning/Error/Success)
 - **Timestamped logging** to disk with automatic cleanup (logs older than 30 days deleted)
 - **Toast notifications** on task completion with status indicator
 - **Reboot status detection** — alerts when reboot is required
-- **Administrator privilege check** — validates elevated privileges before proceeding
-- **Color-coded console output** for easy issue identification
+- **Administrator privilege check** — validates elevated privileges before proceeding with exit code 1 if not admin
+- **Color-coded console output** (Cyan/Yellow/Red/Green) for easy issue identification
+- **Smart error recovery** — continues processing if one update method fails; reports all warnings in summary
 - **Designed to run under Task Scheduler** or as a one-off script
+- **Graceful degradation** — missing optional modules/commands don't crash script
 
 ---
 
@@ -140,13 +144,26 @@ Get-Help .\FullUpdate.ps1 -Full
 
 ### Behavior
 
-- **Daily Skip Check**: Script automatically skips execution if it already ran today. Use `-Force` to override.
-- **Admin Check**: Script verifies Administrator privileges at startup and exits if not elevated.
-- **Module Validation**: Checks for PSWindowsUpdate and BurntToast availability and reports installation steps if missing.
-- **Update Order**: Executes winget → Microsoft Store → Windows Updates in sequence
-- **Error Handling**: Continues processing even if one update method fails; reports warnings in summary
-- **Cleanup**: Logs older than 30 days are automatically deleted
-- **Notifications**: Toast notifications sent on completion (if BurntToast available) with status indicator
+### Behavior & Resilience
+
+- **Resilient Processing**: Script continues even if individual update methods fail
+  - If winget fails: logs error, continues to Microsoft Store updates
+  - If Store updates fail: logs error, continues to Windows Updates
+  - If Windows Update fails: logs error, continues to verification steps
+  - Each failure sets `$UpdatesFailed` flag for final status reporting
+
+- **State File Handling**: If state file cannot be written, script logs warning and continues
+  - Allows execution to proceed even if state tracking fails
+  - Missing state file on subsequent runs will re-execute (not skip)
+
+- **Module Handling**: Missing optional modules are reported with installation instructions
+  - PSWindowsUpdate missing: Windows updates skipped, others continue
+  - BurntToast missing: Script continues, notifications skipped
+  - Script never crashes due to missing modules
+
+- **Final Status**: Summary shows "COMPLETED SUCCESSFULLY" only if all steps succeeded
+  - Shows "COMPLETED WITH WARNINGS/ERRORS" if reboot required or any step failed
+  - Updates not performed if daily skip check triggered (shows "No further action required")
 
 ---
 
@@ -162,7 +179,25 @@ $StateDir = "C:\Scripts\State"
 $LogDir = "C:\Scripts\Logs"
 ```
 
-To customize these paths, edit `FullUpdate.ps1` and update the variables in the "Logging Setup" section.
+To customize these paths, edit `FullUpdate.ps1` and update the variables in the "Logging Setup" section (around line 120).
+
+### Helper Functions
+
+The script includes two helper functions for consistency and maintainability:
+
+**`Ensure-ModuleAvailable`** (line 45)
+- Validates PowerShell module availability
+- Provides installation instructions if module not found
+- Returns `$true` if available, `$false` if missing
+- Used for: PSWindowsUpdate, BurntToast
+
+**`Log-Message`** (line 58)
+- Unified logging with color-coding and timestamps
+- Parameters:
+  - `$Message`: Text to output
+  - `$Level`: Info (Cyan) | Warning (Yellow) | Error (Red) | Success (Green)
+  - `-NoTimestamp`: Omit timestamp (optional)
+- Used throughout script for consistent output
 
 ### Logging
 
@@ -170,16 +205,17 @@ To customize these paths, edit `FullUpdate.ps1` and update the variables in the 
 - **Transcript**: Full PowerShell transcript appended to daily log
 - **Cleanup**: Logs older than 30 days are automatically deleted
 - **Timestamp Format**: `dd-MMM-yy` for files, `HH:mm:ss` for console/log entries
+- **State Tracking**: Last run date stored in `C:\Scripts\State\LastRun.txt`
 
 ### Summary Output
 
 After updates complete, a summary is displayed showing:
-- Winget update status
-- Microsoft Store update status
-- Windows Update installation status
+- Winget update status with exit code (if non-zero)
+- Microsoft Store update status (or SKIPPED if store command unavailable)
+- Windows Update installation status (or SKIPPED if module unavailable)
 - Restore point verification result
-- Reboot status (required/not required)
-- Overall completion status (success/warnings/errors)
+- Reboot status (required/not required/unable to determine)
+- Overall completion status (success/warnings/errors) in color-coded output
 
 ---
 
@@ -286,7 +322,7 @@ Alternatively, create the task using the GUI:
 ## FAQ
 
 **Q: Will this reboot my machine?**
-A: Only if Windows Updates require a reboot. The script will detect pending reboot status and report it in the summary. The `-AutoReboot` flag in PSWindowsUpdate may trigger automatic reboot on Windows Update installations.
+A: Only if Windows Updates require a reboot. The script detects pending reboot status via Windows registry (`HKLM:\Software\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\`) and reports it in the summary with status "REQUIRED". When reboot is needed, `$UpdatesFailed` is set to true and the final status shows "COMPLETED WITH WARNINGS/ERRORS". The PSWindowsUpdate module's `-AutoReboot` flag may trigger automatic reboot if configured by the module.
 
 **Q: Why does the script skip when I run it multiple times?**
 A: The daily skip check prevents redundant executions if the script already ran today. Use `-Force` parameter to override this check for testing.
