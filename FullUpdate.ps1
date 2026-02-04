@@ -23,11 +23,20 @@ param (
     [switch]$Force
 )
 
+# --- Admin Check ---
+$isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+if (-not $isAdmin) {
+    Write-Host "ERROR: This script must run with Administrator privileges." -ForegroundColor Red
+    Write-Host "Please run PowerShell as Administrator and try again." -ForegroundColor Yellow
+    exit 1
+}
+
 # --- Settings ---
 $ErrorActionPreference = "Stop"
 $StartTime = Get-Date
 $Script:TranscriptStarted = $false
 $Script:UpdatesFailed = $false
+$Script:SkipProcessing = $false
 
 # --- Helper Functions ---
 function Ensure-ModuleAvailable {
@@ -44,6 +53,25 @@ function Ensure-ModuleAvailable {
     return $true
 }
 
+function Log-Message {
+    param(
+        [string]$Message,
+        [ValidateSet('Info', 'Warning', 'Error', 'Success')]
+        [string]$Level = 'Info',
+        [switch]$NoTimestamp
+    )
+    
+    $timestamp = if (-not $NoTimestamp) { "[$(Get-Date -Format 'HH:mm:ss')] " } else { "" }
+    $color = @{
+        'Info'    = 'Cyan'
+        'Warning' = 'Yellow'
+        'Error'   = 'Red'
+        'Success' = 'Green'
+    }[$Level]
+    
+    Write-Host "$timestamp$Message" -ForegroundColor $color
+}
+
 try {
     # --- Daily Skip Check ---
     $StateDir = "C:\Scripts\State"
@@ -57,19 +85,36 @@ try {
         
         # Check if we should skip: Only skip if it ran today AND -Force was NOT used
         if ($LastRun -eq $Today -and -not $Force) {
+            Log-Message "Script already ran today. Skipping updates. Use -Force to override." -Level 'Info'
             if (Ensure-ModuleAvailable -ModuleName "BurntToast" -Description "BurntToast") {
-                Import-Module BurntToast -ErrorAction SilentlyContinue
-                New-BurntToastNotification -Text "Update Script", "Skipped — already ran today ($Today)" -ErrorAction SilentlyContinue | Out-Null
+                try {
+                    Import-Module BurntToast -ErrorAction SilentlyContinue
+                    New-BurntToastNotification -Text "Update Script", "Skipped — already ran today ($Today)" -ErrorAction SilentlyContinue | Out-Null
+                }
+                catch { }
             }
-            exit
+            # Set flag to skip processing but continue to finally block
+            $Script:SkipProcessing = $true
         }
         elseif ($Force) {
-            Write-Host "Force flag detected. Bypassing daily skip check." -ForegroundColor Cyan
+            Log-Message "Force flag detected. Bypassing daily skip check." -Level 'Info'
         }
     }
 
     # Update last run date
-    $Today | Out-File $StateFile -Force
+    try {
+        $Today | Out-File $StateFile -Force -ErrorAction Stop
+    }
+    catch {
+        Log-Message "WARNING: Could not update state file: $_" -Level 'Warning'
+        $Script:UpdatesFailed = $true
+    }
+
+    # Skip remaining processing if daily check passed
+    if ($Script:SkipProcessing) {
+        Write-Host "\nNo updates performed." -ForegroundColor Gray
+        throw "Daily skip check - skipping updates"
+    }
 
     # --- Logging Setup ---
     $LogDir = "C:\Scripts\Logs"
@@ -169,21 +214,39 @@ try {
 
 
     # --- Check Restore Point ---
-    Write-Host "`n[$(Get-Date -Format 'HH:mm:ss')] Checking for restore point created during updates..." -ForegroundColor Cyan
+    Log-Message "Checking for restore point created during updates..." -Level 'Info'
     
     try {
         $RestorePoints = Get-ComputerRestorePoint -ErrorAction SilentlyContinue | Where-Object { $_.CreationTime -gt $StartTime }
         if ($RestorePoints) {
-            Write-Host "Restore point found: $($RestorePoints[0].Description) created at $($RestorePoints[0].CreationTime)" -ForegroundColor Green
+            Log-Message "Restore point found: $($RestorePoints[0].Description)" -Level 'Success'
             $Summary += "Restore point verified: $($RestorePoints[0].Description)"
         } else {
-            Write-Host "No restore point created during the update process." -ForegroundColor Yellow
+            Log-Message "No restore point created during the update process." -Level 'Warning'
             $Summary += "Restore point: None created"
         }
     }
     catch {
-        Write-Host "WARNING: Could not verify restore point. Insufficient permissions or restore points disabled." -ForegroundColor Yellow
+        Log-Message "Could not verify restore point. Insufficient permissions or restore points disabled." -Level 'Warning'
         $Summary += "Restore point check: Unavailable"
+    }
+
+    # --- Check Reboot Status ---
+    Log-Message "Checking if system reboot is required..." -Level 'Info'
+    try {
+        $rebootPending = (Get-ItemProperty -Path "HKLM:\Software\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\" -Name RebootRequired -ErrorAction SilentlyContinue) -ne $null
+        if ($rebootPending) {
+            Log-Message "System reboot is REQUIRED to complete updates." -Level 'Warning'
+            $Summary += "Reboot Status: REQUIRED"
+            $Script:UpdatesFailed = $true
+        } else {
+            Log-Message "No reboot required." -Level 'Success'
+            $Summary += "Reboot Status: Not required"
+        }
+    }
+    catch {
+        Log-Message "Could not determine reboot status." -Level 'Warning'
+        $Summary += "Reboot Status: Unable to determine"
     }
 
     # --- Summary Output ---
@@ -197,9 +260,15 @@ try {
     }
 }
 catch {
-    Write-Host "FATAL ERROR: Script encountered an unexpected error: $_" -ForegroundColor Red
-    $Summary += "FATAL ERROR: $_"
-    $Script:UpdatesFailed = $true
+    if ($_.Exception.Message -eq "Daily skip check - skipping updates") {
+        # This is expected, not a fatal error
+        Write-Host "No further action required." -ForegroundColor Gray
+    } else {
+        Log-Message "Script encountered an unexpected error: $_" -Level 'Error'
+        if (-not (Test-Path Variable:\Summary)) { $Script:Summary = @() }
+        $Summary += "FATAL ERROR: $_"
+        $Script:UpdatesFailed = $true
+    }
 }
 finally {
     # --- End Logging ---
