@@ -5,6 +5,7 @@ param (
 
 # --- Settings ---
 $ErrorActionPreference = "Stop"
+$StartTime = Get-Date
 
 # --- Daily Skip Check ---
 $StateDir = "C:\Scripts\State"
@@ -70,14 +71,24 @@ $Summary += "Store updates completed."
 Write-Host "Running Windows Updates..."
 $Summary += "Windows Update scan started."
 Import-Module PSWindowsUpdate
-Get-WindowsUpdate -AcceptAll -Download
-Install-WindowsUpdate -AcceptAll -AutoReboot
+Get-WindowsUpdate -AcceptAll -Download | Out-Null
+Install-WindowsUpdate -AcceptAll -AutoReboot | Out-Null
 $Summary += "Windows Update installation completed."
 
 
 # --- Summary Output ---
 Write-Host "`n--- Update Summary ---"
 $Summary | ForEach-Object { Write-Host $_ }
+
+
+# --- Check Restore Point ---
+Write-Host "`nChecking for restore point created during updates..."
+$RestorePoints = Get-ComputerRestorePoint | Where-Object { $_.CreationTime -gt $StartTime }
+if ($RestorePoints) {
+    Write-Host "Restore point found: $($RestorePoints[0].Description) created at $($RestorePoints[0].CreationTime)"
+} else {
+    Write-Host "No restore point created during the update process."
+}
 
 
 # --- End Logging ---
