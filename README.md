@@ -1,5 +1,9 @@
-<p align="left">
-  <img src="assets/banner-dark.png" width="65%" />
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="assets/banner-light.svg">
+    <img alt="Windows Auto Updater Banner" src="assets/banner-dark.svg" width="70%">
+  </picture>
 </p>
 
 # Windows Auto Updater
@@ -24,6 +28,7 @@ A modern automation tool with a retro soul — keep your Windows system and apps
 - [Configuration](#configuration)
 - [Scheduling (Task Scheduler)](#scheduling-task-scheduler)
 - [Logging & Troubleshooting](#logging--troubleshooting)
+- [Branding](#branding)
 - [Contributing](#contributing)
 - [License](#license)
 - [Acknowledgements](#acknowledgements)
@@ -259,6 +264,32 @@ A: Logs are written to `C:\Scripts\Logs\UpdateLog-[DATE].txt`. Open the most rec
 
 **Q: Can I deploy this to multiple machines?**
 A: Yes — copy the script to each machine and create a scheduled task, or use Group Policy/Intune for enterprise deployment.
+
+---
+
+## Branding
+
+This project includes retro-inspired banners in both dark and light themes to match your GitHub preferences.
+
+### Banner Usage
+
+The README automatically displays the appropriate banner based on your GitHub theme preference:
+- **Dark Theme** (`banner-dark.svg`) — Neon green terminal aesthetic on dark background
+- **Light Theme** (`banner-light.svg`) — Professional dark text on light background
+
+Both banners are scalable SVG files located in the `/assets` directory.
+
+### Customization
+
+To use a specific banner in your own documentation:
+
+```markdown
+<!-- Dark theme (retro neon green) -->
+<img src="https://raw.githubusercontent.com/thegeekyjay/windows-auto-updater/main/assets/banner-dark.svg" width="70%" />
+
+<!-- Light theme (professional) -->
+<img src="https://raw.githubusercontent.com/thegeekyjay/windows-auto-updater/main/assets/banner-light.svg" width="70%" />
+```
 
 ---
 
