@@ -37,7 +37,11 @@ Windows Auto Updater automates common update tasks on Windows:
 - Update winget packages
 - Update Microsoft Store apps
 - Install Windows Updates
-- Log progress and errors
+- Verify system restore points
+- Detect pending reboots
+- Daily run check to prevent redundant executions
+- Comprehensive error handling and recovery
+- Timestamped logging and notifications
 - Run unattended via Task Scheduler
 
 It is built with modern PowerShell but ships with a playful retro-inspired branding — practical and fun.
@@ -46,13 +50,19 @@ It is built with modern PowerShell but ships with a playful retro-inspired brand
 
 ## Features
 
-- Fully automated winget package updates
-- Automated Microsoft Store app updates
-- Automated Windows Update installation (optional / configurable)
-- Clean, timestamped logging
-- Dry-run mode for testing
-- Designed to run under Task Scheduler or as a one-off script
-- Error handling and basic retry logic
+- **Fully automated winget package updates** with exit code validation
+- **Automated Microsoft Store app updates** with availability checking
+- **Automated Windows Update installation** with reboot detection
+- **System restore point verification** after updates
+- **Daily run prevention** — automatically skips if already run today (bypass with `-Force`)
+- **Comprehensive error handling** — try-catch-finally with proper cleanup
+- **Module availability validation** — verifies PSWindowsUpdate and BurntToast before use
+- **Timestamped logging** to disk with automatic cleanup (logs older than 30 days deleted)
+- **Toast notifications** on task completion with status indicator
+- **Reboot status detection** — alerts when reboot is required
+- **Administrator privilege check** — validates elevated privileges before proceeding
+- **Color-coded console output** for easy issue identification
+- **Designed to run under Task Scheduler** or as a one-off script
 
 ---
 
@@ -60,9 +70,11 @@ It is built with modern PowerShell but ships with a playful retro-inspired brand
 
 - Windows 10 / Windows 11
 - PowerShell 5.1+ (PowerShell Core also supported where applicable)
-- winget (App Installer) for package management
-- Optional: Windows Store & Microsoft Store CLI / module (for Store app updates)
-- Administrative privileges are required for Windows Update and some package installations
+- **Administrator privileges** (required for Windows Update and system operations)
+- **winget** (App Installer) for package management
+- **PSWindowsUpdate** PowerShell module (install with: `Install-Module -Name PSWindowsUpdate -Force`)
+- **BurntToast** PowerShell module for notifications (install with: `Install-Module -Name BurntToast -Force`)
+- Optional: Windows Store & Microsoft Store CLI for Store app updates
 
 ---
 
@@ -75,18 +87,30 @@ It is built with modern PowerShell but ships with a playful retro-inspired brand
    cd windows-auto-updater
    ```
 
-2. Inspect configuration (see Configuration section) and adjust as needed.
-
-3. Run the script as Administrator:
+2. Install required PowerShell modules (run in elevated PowerShell):
 
    ```powershell
-   # Example (replace with actual script name if different)
-   Start-Process -FilePath powershell -Verb runAs -ArgumentList '-NoProfile -ExecutionPolicy Bypass -File .\WindowsAutoUpdater.ps1'
+   Install-Module -Name PSWindowsUpdate -Force
+   Install-Module -Name BurntToast -Force
    ```
 
-Notes:
-- You may prefer to use a CI/packaging workflow or a scheduled task rather than manual runs.
-- If your environment restricts script execution, use `-ExecutionPolicy Bypass` or configure an appropriate execution policy.
+3. Ensure winget is installed:
+
+   ```powershell
+   winget --version
+   ```
+   If not installed, install App Installer from Microsoft Store.
+
+4. Run the script as Administrator:
+
+   ```powershell
+   Start-Process -FilePath powershell -Verb runAs -ArgumentList '-NoProfile -ExecutionPolicy Bypass -File .\FullUpdate.ps1'
+   ```
+
+**Notes:**
+- The script will automatically verify admin privileges and required modules on startup
+- Missing modules will be reported with installation instructions
+- If your environment restricts script execution, use `-ExecutionPolicy Bypass` or configure an appropriate execution policy
 
 ---
 
@@ -95,49 +119,62 @@ Notes:
 Basic invocation:
 
 ```powershell
-# Run updates now (default behavior)
-.\WindowsAutoUpdater.ps1
+# Run updates (skips if already ran today)
+.\FullUpdate.ps1
 
-# Dry-run: show what would happen without making changes
-.\WindowsAutoUpdater.ps1 -DryRun
+# Force run regardless of daily check
+.\FullUpdate.ps1 -Force
 
-# Verbose logging
-.\WindowsAutoUpdater.ps1 -Verbose
-
-# Specify custom config path
-.\WindowsAutoUpdater.ps1 -ConfigPath ".\config\updater-config.json"
+# Get help and parameters
+Get-Help .\FullUpdate.ps1 -Full
 ```
 
-Available parameters (examples — adjust to actual script's parameter names):
-- `-DryRun` — simulate actions without performing changes
-- `-ConfigPath <path>` — path to configuration file
-- `-LogPath <path>` — override the default log file location
-- `-Force` — force reinstall/upgrade where supported
+### Parameters
 
-(If you expose other CLI parameters in your script, list them here for users.)
+- **`-Force`** — Force execution even if script already ran today. Useful for manual/testing execution.
+
+### Behavior
+
+- **Daily Skip Check**: Script automatically skips execution if it already ran today. Use `-Force` to override.
+- **Admin Check**: Script verifies Administrator privileges at startup and exits if not elevated.
+- **Module Validation**: Checks for PSWindowsUpdate and BurntToast availability and reports installation steps if missing.
+- **Update Order**: Executes winget → Microsoft Store → Windows Updates in sequence
+- **Error Handling**: Continues processing even if one update method fails; reports warnings in summary
+- **Cleanup**: Logs older than 30 days are automatically deleted
+- **Notifications**: Toast notifications sent on completion (if BurntToast available) with status indicator
 
 ---
 
 ## Configuration
 
-Provide a simple JSON (or PowerShell hash) config file to control behavior. Example JSON:
+The script uses hardcoded paths that can be modified directly in the script:
 
-```json
-{
-  "UpdateWinget": true,
-  "UpdateStoreApps": true,
-  "InstallWindowsUpdates": false,
-  "RebootIfRequired": false,
-  "ExcludedPackages": [
-    "some-package-id"
-  ],
-  "LogDirectory": "C:\\ProgramData\\WindowsAutoUpdater\\Logs"
-}
+```powershell
+# State directory (daily run tracking)
+$StateDir = "C:\Scripts\State"
+
+# Log directory (update logs and transcripts)
+$LogDir = "C:\Scripts\Logs"
 ```
 
-Tips:
-- Keep RebootIfRequired off when using interactive machines; enable for servers or dedicated endpoints.
-- Use ExcludedPackages to skip known-bad upgrades or packages that require manual interaction.
+To customize these paths, edit `FullUpdate.ps1` and update the variables in the "Logging Setup" section.
+
+### Logging
+
+- **Location**: `C:\Scripts\Logs\UpdateLog-[DATE].txt` (default)
+- **Transcript**: Full PowerShell transcript appended to daily log
+- **Cleanup**: Logs older than 30 days are automatically deleted
+- **Timestamp Format**: `dd-MMM-yy` for files, `HH:mm:ss` for console/log entries
+
+### Summary Output
+
+After updates complete, a summary is displayed showing:
+- Winget update status
+- Microsoft Store update status
+- Windows Update installation status
+- Restore point verification result
+- Reboot status (required/not required)
+- Overall completion status (success/warnings/errors)
 
 ---
 
@@ -148,42 +185,80 @@ To automate runs, create a scheduled task that runs as SYSTEM or an administrati
 Example: register a scheduled task that runs daily at 3:00 AM (run with highest privileges):
 
 ```powershell
-$action = New-ScheduledTaskAction -Execute "PowerShell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -File `\"C:\path\to\WindowsAutoUpdater.ps1`\""
+$action = New-ScheduledTaskAction -Execute "PowerShell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -File `\"C:\path\to\FullUpdate.ps1`\""
 $trigger = New-ScheduledTaskTrigger -Daily -At 3am
 $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -RunLevel Highest
 Register-ScheduledTask -TaskName "Windows Auto Updater" -Action $action -Trigger $trigger -Principal $principal
 ```
 
-Alternatively, create the task via Task Scheduler GUI. Make sure the account you use has required privileges to install updates.
+**Important Notes:**
+- Task must run as SYSTEM or an account with Administrator privileges
+- Script will fail gracefully if not running elevated
+- Daily skip check prevents redundant runs if scheduled multiple times per day
+- Use `-Force` parameter in scheduled task if you want to bypass daily check:
+  ```powershell
+  -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `\"C:\path\to\FullUpdate.ps1`\" -Force"
+  ```
+
+Alternatively, create the task via Task Scheduler GUI. Ensure proper permissions are configured.
 
 ---
 
 ## Logging & Troubleshooting
 
-- Logs are written to the configured LogDirectory (default: ProgramData path). Each run should create a timestamped log file.
-- Look for error entries and stacktraces in the log to identify failing steps.
-- Common issues:
-  - winget not installed or out-of-date — install App Installer from Microsoft Store.
-  - Permissions — run with an account that has administrative rights.
-  - Store updates may require a signed-in Microsoft account or additional modules — see the Troubleshooting section below.
+### Log Locations
 
-Troubleshooting steps:
-1. Run with `-DryRun` and `-Verbose` to see planned actions.
-2. Re-run failing commands manually in an elevated PowerShell prompt to capture additional context.
-3. Share log excerpts when opening issues — include timestamps and full error messages.
+- **Logs**: `C:\Scripts\Logs\UpdateLog-[DATE].txt`
+- **State**: `C:\Scripts\State\LastRun.txt` (tracks last execution date)
+- **Transcript**: Appended to daily log file
+
+### Common Issues & Solutions
+
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| "Must run with Administrator privileges" | Script running as non-admin user | Run PowerShell as Administrator |
+| "PSWindowsUpdate module not installed" | Missing required module | Run `Install-Module -Name PSWindowsUpdate -Force` |
+| "BurntToast module not installed" | Missing notification module | Run `Install-Module -Name BurntToast -Force` (optional) |
+| "'store' command not found" | Microsoft Store CLI unavailable | Install App Installer or update Windows |
+| Script runs twice | Scheduled task runs multiple times daily | Use daily skip check or adjust schedule |
+| Windows Update install fails | Module/permission issues | Check transcript for detailed error; rerun manually to diagnose |
+
+### Troubleshooting Steps
+
+1. **Check the log file**: Look in `C:\Scripts\Logs\` for the most recent log
+2. **Review error messages**: Error messages are color-coded (red) in console output
+3. **Test with Force flag**: Run `.\FullUpdate.ps1 -Force` to bypass daily check
+4. **Run manually**: Execute script manually in elevated PowerShell to see real-time output
+5. **Check prerequisites**: Verify winget, PSWindowsUpdate, and BurntToast are installed
+6. **Review transcript**: Full PowerShell transcript is included in log file with detailed cmdlet output
 
 ---
 
 ## FAQ
 
-Q: Will this reboot my machine?
-A: Only if configured (`RebootIfRequired`) or if a particular update demands it. Default behavior is conservative.
+**Q: Will this reboot my machine?**
+A: Only if Windows Updates require a reboot. The script will detect pending reboot status and report it in the summary. The `-AutoReboot` flag in PSWindowsUpdate may trigger automatic reboot on Windows Update installations.
 
-Q: Can I exclude specific packages?
-A: Yes — use `ExcludedPackages` in the config to skip items.
+**Q: Why does the script skip when I run it multiple times?**
+A: The daily skip check prevents redundant executions if the script already ran today. Use `-Force` parameter to override this check for testing.
 
-Q: Does this run on multiple machines?
-A: Yes — you can deploy via management systems (SCCM, Intune) or as a scheduled task across endpoints.
+**Q: What if required modules are missing?**
+A: The script checks for PSWindowsUpdate and BurntToast at startup and displays installation instructions if missing. The script will skip updates but won't crash.
+
+**Q: Can I customize the log/state directories?**
+A: Yes — edit the `$StateDir` and `$LogDir` variables in the script to point to your preferred locations.
+
+**Q: Does this work with Windows 10/11?**
+A: Yes, both are supported. You need PowerShell 5.1+ and administrator privileges.
+
+**Q: What if the script runs during a reboot?**
+A: The finally block ensures proper cleanup (stopping transcript, sending notification) even if rebooting occurs.
+
+**Q: How do I see detailed output?**
+A: Logs are written to `C:\Scripts\Logs\UpdateLog-[DATE].txt`. Open the most recent log to see full transcript and timestamps.
+
+**Q: Can I deploy this to multiple machines?**
+A: Yes — copy the script to each machine and create a scheduled task, or use Group Policy/Intune for enterprise deployment.
 
 ---
 
