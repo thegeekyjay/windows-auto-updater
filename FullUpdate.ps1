@@ -23,6 +23,9 @@ param (
     [switch]$Force
 )
 
+# --- Version ---
+$ScriptVersion = "1.1"
+
 # --- Admin Check ---
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $isAdmin) {
